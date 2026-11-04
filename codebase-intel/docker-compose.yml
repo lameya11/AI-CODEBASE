@@ -1,0 +1,46 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: codebase_intel
+      POSTGRES_PASSWORD: codebase_intel_secret
+      POSTGRES_DB: codebase_intel
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codebase_intel"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://codebase_intel:codebase_intel_secret@postgres:5432/codebase_intel
+      DATA_DIR: /app/data
+      LLM_PROVIDER: ${LLM_PROVIDER:-none}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      MAX_FILES: ${MAX_FILES:-2000}
+      COMPLEXITY_THRESHOLD: ${COMPLEXITY_THRESHOLD:-10}
+    volumes:
+      - backend_data:/app/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  backend_data:
